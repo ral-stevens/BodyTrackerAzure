@@ -802,15 +802,20 @@ void BodyTracker::DiscardDirect2DResources()
 /// <param name="width">width (in pixels) of output buffer</param>
 /// <param name="height">height (in pixels) of output buffer</param>
 /// <returns>point in screen-space</returns>
-D2D1_POINT_2F BodyTracker::BodyToScreen(const k4a_float3_t& point3d, int width, int height)
+D2D1_POINT_2F BodyTracker::BodyToScreen(const k4a_float3_t& point3d, int width_rendering, int height_rendering)
 {
 	k4a_float2_t point2d;
 	int valid;
 	k4a_calibration_3d_to_2d(&m_KinectCalibration, &point3d, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &point2d, &valid);
-	float width_ratio = width / m_KinectCalibration.depth_camera_calibration.resolution_width;
-	float height_ratio = height / m_KinectCalibration.depth_camera_calibration.resolution_height;
-	float min_ratio = min(width_ratio, height_ratio);
-	return D2D1::Point2F(width - point2d.xy.x * min_ratio, point2d.xy.y * min_ratio);
+	float width_actual = m_KinectCalibration.depth_camera_calibration.resolution_width;
+	float height_actual = m_KinectCalibration.depth_camera_calibration.resolution_height;
+	float ratio_width = static_cast<float>(width_rendering) / width_actual;
+	float ratio_height = static_cast<float>(height_rendering) / height_actual;
+	float ratio_min = min(ratio_width, ratio_height);
+
+	float px = width_rendering / 2 + (point2d.xy.x - width_actual / 2) * ratio_min;
+	float py = point2d.xy.y * ratio_min;
+	return D2D1::Point2F(px, py);
 }
 
 /// <summary>
