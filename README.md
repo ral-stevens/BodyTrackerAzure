@@ -21,4 +21,4 @@ git clone --recurse-submodule https://github.com/zchenpds/KinectBodyTracker
 
 ## Compiling the source
 1. Before compiling the source, you might need to retarget the solution if you have a higher version of Windows SDK. To do this, right click on your solution in the Solution Explorer, and then choose "Retarget solution". 
-1. Once the source code is compiled, a `.exe` file will be generated in `.\Release` in case of Release mode, or in `.\Debug` in case of Debug mode. Currently, only the Release build works.
+1. Once the source code is compiled, a `.exe` file will be generated in `.\x64\Debug`.
