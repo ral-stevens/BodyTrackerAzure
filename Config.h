@@ -1,7 +1,6 @@
 #pragma once
 #include <map>
 #include <string>
-#include "Eigen/core"
 
 typedef std::map<std::string, std::string> ConfigParams;
 const float FLOAT_EPSILON = 1e-4;
@@ -28,7 +27,6 @@ public:
 	bool assign(const std::string & strKey, double & fValue);
 	bool assign(const std::string & strKey, bool & bValue);
 	bool assign(const std::string & strKey, int & iValue);
-	bool assign(const std::string & strKey, Eigen::Vector3d & vecFloat);
 
 	static void resetCounter();
 	static int getUpdateCount();

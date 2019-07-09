@@ -22,3 +22,13 @@ BodyTracker-Debug.sln
 test
 sophus/
 CalibSolverReport.txt
+
+*.obj
+*.res
+*.pdb
+*.idb
+*.tlog*
+*.log
+*.exe
+*.ilk
+x64/Debug/config.txt

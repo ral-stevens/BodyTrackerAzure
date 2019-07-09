@@ -22,21 +22,19 @@
 #include <d2d1.h>
 
 // Kinect Header files
-#include <Kinect.h>
 
 // ROS Header files
 #undef ERROR
 #include "ros.h"
 #include <geometry_msgs/Twist.h>
 
-#include "Aria.h"
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <locale> 
 #include <codecvt>
-#include "Eigen/core"
-#include "Eigen/Geometry"
+#include <k4a/k4a.h>
+#include <k4abt.h>
 
 #pragma comment (lib, "d2d1.lib")
 
