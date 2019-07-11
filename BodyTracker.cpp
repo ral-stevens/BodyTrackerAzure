@@ -59,16 +59,18 @@ BodyTracker::BodyTracker() :
 	m_nFramesSinceUpdate(0),
 	m_fFreq(0),
 	m_nNextStatusTime(0LL),
-	m_Kinect(NULL),
-	m_KinectConfig(K4A_DEVICE_CONFIG_INIT_DISABLE_ALL),
-	m_KinectBodyTracker(NULL),
-	m_pSkeletonClosest(nullptr),
+	m_KinectAzure(
+		std::bind(&BodyTracker::PrintMessage, this, SCT_Kinect, std::placeholders::_1),
+		std::bind(&BodyTracker::PrintMessage, this, SCT_BodyTracker, std::placeholders::_1),
+		std::bind(&BodyTracker::ProcessBody, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
+		std::bind(&BodyTracker::ProcessIMU, this, std::placeholders::_1)
+	),
 	m_pD2DFactory(NULL),
 	m_pRenderTarget(NULL),
 	m_pBrushJointTracked(NULL),
 	m_pBrushBoneTracked(NULL),
-	m_pSyncSocket(NULL),
-	m_pRosSocket(NULL)
+	m_pSyncSocket(nullptr),
+	m_pRosSocket(nullptr)
 {
     LARGE_INTEGER qpf = {0};
     if (QueryPerformanceFrequency(&qpf))
@@ -94,13 +96,13 @@ BodyTracker::~BodyTracker()
 {
 	delete m_pSyncSocket;
 	delete m_pRosSocket;
-
-	ReleaseDefaultSensor();
+	m_pRosSocket = nullptr;
 
     DiscardDirect2DResources();
 
     // clean up Direct2D
     SafeRelease(m_pD2DFactory);
+	m_hWnd = NULL;
 }
 
 /// <summary>
@@ -237,7 +239,7 @@ int BodyTracker::Run(HINSTANCE hInstance, int nCmdShow)
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &m_pD2DFactory);
 
 	// Get and initialize the default Kinect sensor
-	InitializeDefaultSensor();
+	//EnsureDefaultSensor();
 
 	//
 	m_pSyncSocket->init(hWndApp);
@@ -275,29 +277,7 @@ int BodyTracker::Run(HINSTANCE hInstance, int nCmdShow)
 
 void BodyTracker::setParams()
 {
-	// Configure Kinect device
-	m_KinectConfig.color_resolution = K4A_COLOR_RESOLUTION_720P;
-
-	int depth_mode_selection = K4A_DEPTH_MODE_NFOV_UNBINNED;
-	Config::Instance()->assign("k4a/depth_mode", depth_mode_selection);
-	switch (depth_mode_selection)
-	{
-	case 1:
-		m_KinectConfig.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED; // 320x288
-		break;
-	case 2:
-		m_KinectConfig.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED; // 640x576
-		break;
-	case 3:
-		m_KinectConfig.depth_mode = K4A_DEPTH_MODE_WFOV_2X2BINNED; // 512x512
-		break;
-	case 4:
-		m_KinectConfig.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED; // 1024x1024
-		break;
-	default:
-		m_KinectConfig.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED; // 640x576
-
-	}
+	m_KinectAzure.setParams();
 }
 
 void BodyTracker::onPressingButtonFollow()
@@ -325,73 +305,12 @@ void BodyTracker::updateButtons()
 /// </summary>
 void BodyTracker::Update()
 {
-	static uint32_t counter;
-	if (counter++ > 500)
+	static INT64 timePrev = GetTickCount64();
+	if (GetTickCount64() - timePrev > 500)
 	{
 		EnsureRosSocket();
-		if (!m_Kinect)
-		{
-			InitializeDefaultSensor();
-		}
-		counter = 0;
+		timePrev = GetTickCount64();
 	}
-	
-    if (!m_KinectBodyTracker)
-    {
-        return;
-    }
-
-	int32_t timeout_ms = 1000;
-
-	// Read a sensor capture  
-	k4a_capture_t capture;
-	k4a_wait_result_t capture_result = k4a_device_get_capture(m_Kinect, &capture, timeout_ms);
-
-	if (capture_result == K4A_WAIT_RESULT_SUCCEEDED)
-	{
-		k4a_wait_result_t queue_result = k4abt_tracker_enqueue_capture(m_KinectBodyTracker, capture, timeout_ms);
-		k4a_capture_release(capture);
-
-		if (queue_result == K4A_WAIT_RESULT_SUCCEEDED)
-		{
-			k4abt_frame_t body_frame = NULL;
-			k4a_wait_result_t pop_result = k4abt_tracker_pop_result(m_KinectBodyTracker, &body_frame, timeout_ms);
-
-			if (pop_result == K4A_WAIT_RESULT_SUCCEEDED)
-			{
-				uint64_t timestamp_usec = k4abt_frame_get_timestamp_usec(body_frame);
-				const size_t MAX_NUM_BODIES = 6;
-				size_t num_bodies = min(MAX_NUM_BODIES, k4abt_frame_get_num_bodies(body_frame));
-				uint32_t body_ids[MAX_NUM_BODIES] = {};
-				k4abt_skeleton_t skeletons[MAX_NUM_BODIES] = {};
-
-				k4a_result_t skeleton_result = K4A_RESULT_SUCCEEDED;
-				for (size_t i = 0; i < num_bodies; i++)
-				{
-					body_ids[i] = k4abt_frame_get_body_id(body_frame, i);					
-					k4a_result_t result = k4abt_frame_get_body_skeleton(body_frame, i, &skeletons[i]);
-					if (K4A_FAILED(result)) {
-						skeleton_result = K4A_RESULT_FAILED;
-						break;
-					}
-				}
-				if (K4A_SUCCEEDED(skeleton_result))
-					ProcessBody(timestamp_usec, num_bodies, skeletons, body_ids);
-
-				k4abt_frame_release(body_frame);
-			}
-		}
-
-		
-	}
-	else if (capture_result == K4A_WAIT_RESULT_TIMEOUT)
-	{
-		// Presumably disconnected
-		k4a_device_stop_cameras(m_Kinect);
-		k4a_device_close(m_Kinect);
-		m_Kinect = NULL;
-	}
-
 
 }
 
@@ -449,12 +368,10 @@ LRESULT CALLBACK BodyTracker::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LP
         }
         break;
 
-        // If the titlebar X is clicked, destroy app
-        case WM_CLOSE:
-            DestroyWindow(hWnd);
-            break;
-
         case WM_DESTROY:
+			//m_bTerminating = true;
+			m_hWnd = NULL;
+			m_KinectAzure.Terminate();
             // Quit the main message pump
             PostQuitMessage(0);
             break;
@@ -528,7 +445,8 @@ LRESULT CALLBACK BodyTracker::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LP
 
 void BodyTracker::EnsureRosSocket()
 {
-	if (m_pRosSocket && (m_pRosSocket->getStatus() == RSS_Failed || m_pRosSocket->getStatus() == RSS_Timeout))
+	
+	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Failed)
 	{
 		delete m_pRosSocket;
 		m_pRosSocket = nullptr;
@@ -550,71 +468,7 @@ void BodyTracker::EnsureRosSocket()
 	}
 }
 
-/// <summary>
-/// Initializes the default Kinect sensor
-/// </summary>
-/// <returns>indicates success or failure</returns>
-k4a_result_t BodyTracker::InitializeDefaultSensor()
-{
-    k4a_result_t result;
 
-	if (!m_Kinect)
-	{
-		// Open Kinect device
-		result = k4a_device_open(K4A_DEVICE_DEFAULT, &m_Kinect);
-		if (K4A_FAILED(result))
-		{
-			PrintMessage(SCT_Kinect, L"Failed to open k4a device.");
-			return result;
-		}
-
-		// Start the camera
-		result = k4a_device_start_cameras(m_Kinect, &m_KinectConfig);
-		if (K4A_FAILED(result))
-		{
-			PrintMessage(SCT_Kinect, L"k4a device is open, but failed to start cameras.");
-			k4a_device_close(m_Kinect);
-			m_Kinect = NULL;
-			return result;
-		}
-
-		// Obtain calibration data
-		k4a_device_get_calibration(m_Kinect, m_KinectConfig.depth_mode, m_KinectConfig.color_resolution, &m_KinectCalibration);
-		PrintMessage(SCT_Kinect, L"k4a device is open.");
-	}
-
-	// Create body tracker
-	if (!m_KinectBodyTracker)
-	{
-		result = k4abt_tracker_create(&m_KinectCalibration, &m_KinectBodyTracker);
-		if (K4A_FAILED(result))
-		{
-			PrintMessage(SCT_BodyTracker, L"Failed to create a body tracker\n");
-			m_KinectBodyTracker = NULL;
-			return result;
-		}
-		else
-			PrintMessage(SCT_BodyTracker, L"Successfully created a body tracker\n");
-	}
-
-    return result;
-}
-
-void BodyTracker::ReleaseDefaultSensor()
-{
-	if (m_KinectBodyTracker)
-	{
-		k4abt_tracker_destroy(m_KinectBodyTracker);
-		m_KinectBodyTracker = NULL;
-	}
-
-	if (m_Kinect)
-	{
-		k4a_device_stop_cameras(m_Kinect);
-		k4a_device_close(m_Kinect);
-		m_Kinect = NULL;
-	}
-}
 
 /// <summary>
 /// Handle new body data
@@ -627,6 +481,13 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
 	int iClosest = -1; // the index of the body closest to the camera
 	float dSqrMin = 25.0; // squared x-z-distance of the closest body
 	INT64 t0Windows = GetTickCount64();
+	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Connected)
+	{
+		for (int i = 0; i < nBodyCount; i++) {
+			m_pRosSocket->publishMsgSkeleton(pSkeleton[i], pID[i], nTime);
+
+		}
+	}
 
     if (m_hWnd)
     {
@@ -707,6 +568,39 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
     }
 
 	
+}
+
+void BodyTracker::ProcessIMU(const k4a_imu_sample_t & ImuSample)
+{
+	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Connected)
+	{
+		m_pRosSocket->publishMsgImu(ImuSample);
+	}
+
+	double fps = 0.0;
+	LARGE_INTEGER qpcNow = { 0 };
+	static INT64 nNextStatusTime;
+	static DWORD nSamplesSinceUpdate;
+	static INT64 nLastCounter;
+	if (m_fFreq)
+	{
+		if (QueryPerformanceCounter(&qpcNow))
+		{
+			if (nLastCounter)
+			{
+				nSamplesSinceUpdate++;
+				fps = m_fFreq * nSamplesSinceUpdate / double(qpcNow.QuadPart - nLastCounter);
+			}
+		}
+	}
+	INT64 now = GetTickCount64();
+	if (nNextStatusTime <= now)
+	{
+		PrintMessage(SCT_IMU, (L"IMU data being sampled at " + std::to_wstring(fps) + L" Hz").c_str());
+		nNextStatusTime = now + 500;
+		nLastCounter = qpcNow.QuadPart;
+		nSamplesSinceUpdate = 0;
+	}
 }
 
 /// <summary>
@@ -806,9 +700,10 @@ D2D1_POINT_2F BodyTracker::BodyToScreen(const k4a_float3_t& point3d, int width_r
 {
 	k4a_float2_t point2d;
 	int valid;
-	k4a_calibration_3d_to_2d(&m_KinectCalibration, &point3d, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &point2d, &valid);
-	float width_actual = m_KinectCalibration.depth_camera_calibration.resolution_width;
-	float height_actual = m_KinectCalibration.depth_camera_calibration.resolution_height;
+	const k4a_calibration_t * pKinectCalibration = m_KinectAzure.GetKinectCalibrationPointer();
+	k4a_calibration_3d_to_2d(pKinectCalibration, &point3d, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &point2d, &valid);
+	float width_actual = pKinectCalibration->depth_camera_calibration.resolution_width;
+	float height_actual = pKinectCalibration->depth_camera_calibration.resolution_height;
 	float ratio_width = static_cast<float>(width_rendering) / width_actual;
 	float ratio_height = static_cast<float>(height_rendering) / height_actual;
 	float ratio_min = min(ratio_width, ratio_height);

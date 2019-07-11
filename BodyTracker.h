@@ -13,7 +13,7 @@
 #include "Config.h"
 #include "SyncSocket.h"
 #include <array>
-
+#include "KinectAzure.h"
 
 
 void ErrorExit(LPTSTR lpszFunction)
@@ -70,12 +70,8 @@ private:
     INT64                   m_nNextStatusTime;
     DWORD                   m_nFramesSinceUpdate;
 
-    // TODO: Current Kinect 
-	k4a_device_t			m_Kinect;
-	k4a_device_configuration_t	m_KinectConfig;
-	k4a_calibration_t		m_KinectCalibration;
-	k4abt_tracker_t			m_KinectBodyTracker;
-	k4abt_skeleton_t*		m_pSkeletonClosest;
+    // KinectAzure
+	KinectAzure             m_KinectAzure;
 
     // Direct2D
     ID2D1Factory*           m_pD2DFactory;
@@ -103,6 +99,7 @@ private:
 	{
 		SCT_Kinect = 0,
 		SCT_BodyTracker,
+		SCT_IMU,
 		SCT_RosSocket,
 		SCT_Params,
 		SCT_Count
@@ -125,9 +122,6 @@ private:
 
 	void EnsureRosSocket();
 
-	k4a_result_t InitializeDefaultSensor();
-	void ReleaseDefaultSensor();
-
     
     /// <summary>
     /// Handle new body data
@@ -136,6 +130,7 @@ private:
     /// <param name="ppBodies">body data in frame</param>
     /// </summary>
     void ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID);
+    void ProcessIMU(const k4a_imu_sample_t & ImuSample);
 
     /// <summary>
     /// Set the status bar message
