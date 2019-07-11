@@ -12,6 +12,7 @@ This Visual Studio project extracts the positional data of body joints from an A
 1. [Azure Kinect Sensor SDK](https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download)
 1. [Azure Kinect Body Tracking SDK](https://docs.microsoft.com/en-us/azure/Kinect-dk/body-sdk-download)
 1. Visual Studio 2017 (Version 15.7.4 or above)
+1. A computer running ROS Kinetic with package [gait_training_robot](https://github.com/zchenpds/gait_training_robot)
 
 ## Cloning
 Since it contains a submodule, please use option "--recurse-submodule" to clone to a local directory.
