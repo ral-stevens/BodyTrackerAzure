@@ -1,6 +1,7 @@
 #include "KinectAzure.h"
 #include <chrono>
-
+#include <ctime>
+#include <array>
 
 KinectAzure::KinectAzure(
 	std::function<void(const wchar_t*)> funUpdateStatusKinect,
@@ -71,6 +72,7 @@ void KinectAzure::setParams()
 
 	int depth_mode_selection = K4A_DEPTH_MODE_NFOV_UNBINNED;
 	Config::Instance()->assign("k4a/depth_mode", depth_mode_selection);
+	m_KinectConfig.camera_fps = K4A_FRAMES_PER_SECOND_30;
 	switch (depth_mode_selection)
 	{
 	case 1:
@@ -178,12 +180,28 @@ void KinectAzure::SkeletonUpdate()
 	{
 		k4a_wait_result_t queue_result = k4abt_tracker_enqueue_capture(m_KinectBodyTracker, capture, timeout_ms);
 		k4a_capture_release(capture);
-
+		
 		if (queue_result == K4A_WAIT_RESULT_SUCCEEDED)
 		{
+			clock_t execution_time = clock();
+
 			k4abt_frame_t body_frame = NULL;
 			k4a_wait_result_t pop_result = k4abt_tracker_pop_result(m_KinectBodyTracker, &body_frame, timeout_ms);
-
+			
+			execution_time = clock() - execution_time;
+			static std::array<clock_t, 5> arr_time;
+			static size_t i;
+			arr_time[i++] = execution_time;
+			if (i == arr_time.size())
+			{
+				std::wstring wstr; 
+				std::for_each(arr_time.cbegin(), arr_time.cend(), 
+					[&wstr](clock_t t) {wstr += (wstr.empty() ? L"": L", ") + std::to_wstring(t); });
+				wstr = L"Execution time for pop: " + wstr + L" ms";
+				if (m_funUpdateStatusBodyTracker) m_funUpdateStatusBodyTracker(wstr.c_str());
+				i = 0;
+			}
+			
 			if (pop_result == K4A_WAIT_RESULT_SUCCEEDED)
 			{
 				uint64_t timestamp_usec = k4abt_frame_get_timestamp_usec(body_frame);
