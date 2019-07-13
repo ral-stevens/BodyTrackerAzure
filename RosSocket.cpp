@@ -24,9 +24,9 @@ RosSocket::~RosSocket()
 	m_Thread.join();
 }
 
-void RosSocket::setStatusUpdatingFun(std::function<void(const wchar_t*)> fun)
+void RosSocket::setStatusUpdatingFun(std::function<void(static_control_type, const wchar_t*)> fun)
 {
-	m_funUpdateStatus = fun;
+	m_funPrintMessage = fun;
 }
 
 void RosSocket::updateStatus()
@@ -40,7 +40,7 @@ void RosSocket::updateStatus()
 		{
 			m_WstrStatusMessage = std::wstring(L"Connected to rosserial server at ") +
 				std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(m_strRosMaster);
-			if (m_funUpdateStatus) m_funUpdateStatus(m_WstrStatusMessage.c_str());
+			if (m_funPrintMessage) m_funPrintMessage(SCT_RosSocket, m_WstrStatusMessage.c_str());
 			timePrev = GetTickCount64();
 		}
 	}
@@ -48,7 +48,7 @@ void RosSocket::updateStatus()
 		m_nStatus = RSS_Failed;
 		m_WstrStatusMessage = std::wstring(L"Disconnected from rosserial server at ") +
 			std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(m_strRosMaster);
-		if (m_funUpdateStatus) m_funUpdateStatus(m_WstrStatusMessage.c_str());
+		if (m_funPrintMessage) m_funPrintMessage(SCT_RosSocket, m_WstrStatusMessage.c_str());
 	}
 }
 
@@ -67,7 +67,7 @@ void RosSocket::threadProc()
 
 	m_WstrStatusMessage = std::wstring(L"Connecting to rosserial server at ") + 
 		std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(m_strRosMaster);
-	if (m_funUpdateStatus) m_funUpdateStatus(m_WstrStatusMessage.c_str());
+	if (m_funPrintMessage) m_funPrintMessage(SCT_RosSocket, m_WstrStatusMessage.c_str());
 	//printf("Connecting to server at %s\n", ros_master);
 	nh.initNode(pszRosMaster.get());
 

@@ -94,16 +94,6 @@ private:
 	HWND					m_hWndButtonTestCalibSolver;
 	HWND					m_hWndButtonExit;
 
-	// Show status messages
-	enum static_control_type
-	{
-		SCT_Kinect = 0,
-		SCT_BodyTracker,
-		SCT_IMU,
-		SCT_RosSocket,
-		SCT_Params,
-		SCT_Count
-	};
 	HWND                    m_hWndStaticControls[SCT_Count];
 
 	// ROS Socket

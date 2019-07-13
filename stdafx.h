@@ -69,3 +69,13 @@ template <typename T> int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
 
+// Show status messages
+enum static_control_type
+{
+	SCT_Kinect = 0,
+	SCT_BodyTracker,
+	SCT_IMU,
+	SCT_RosSocket,
+	SCT_Params,
+	SCT_Count
+};

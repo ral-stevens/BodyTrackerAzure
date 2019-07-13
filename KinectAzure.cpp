@@ -4,8 +4,7 @@
 #include <array>
 
 KinectAzure::KinectAzure(
-	std::function<void(const wchar_t*)> funUpdateStatusKinect,
-	std::function<void(const wchar_t*)> funUpdateStatusBodyTracker,
+	std::function<void(static_control_type, const wchar_t*)> funPrintMessage,
 	std::function<void(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)> funProcessBody,
 	std::function<void(const k4a_imu_sample_t & ImuSample)> funProcessIMU
 ):
@@ -16,8 +15,7 @@ KinectAzure::KinectAzure(
 	m_bTerminating(false),
 	m_ThreadSkeleton(&KinectAzure::SkeletonProc, this),
 	m_ThreadImu(&KinectAzure::ImuProc, this),
-	m_funUpdateStatusKinect(funUpdateStatusKinect),
-	m_funUpdateStatusBodyTracker(funUpdateStatusBodyTracker),
+	m_funPrintMessage(funPrintMessage),
 	m_funProcessBody(funProcessBody),
 	m_funProcessIMU(funProcessIMU)
 {
@@ -106,7 +104,7 @@ void KinectAzure::EnsureDefaultSensor()
 		result = k4a_device_open(K4A_DEVICE_DEFAULT, &m_Kinect);
 		if (K4A_FAILED(result))
 		{
-			if (m_funUpdateStatusKinect) m_funUpdateStatusKinect(L"Failed to open k4a device.");
+			if (m_funPrintMessage) m_funPrintMessage(SCT_Kinect, L"Failed to open k4a device.");
 			return;
 		}
 
@@ -114,7 +112,7 @@ void KinectAzure::EnsureDefaultSensor()
 		result = k4a_device_start_cameras(m_Kinect, &m_KinectConfig);
 		if (K4A_FAILED(result))
 		{
-			if (m_funUpdateStatusKinect) m_funUpdateStatusKinect(L"k4a device was open, but failed to start cameras.");
+			if (m_funPrintMessage) m_funPrintMessage(SCT_Kinect, L"k4a device was open, but failed to start cameras.");
 			k4a_device_close(m_Kinect);
 			m_Kinect = NULL;
 			return;
@@ -123,7 +121,7 @@ void KinectAzure::EnsureDefaultSensor()
 		result = k4a_device_start_imu(m_Kinect);
 		if (K4A_FAILED(result))
 		{
-			if (m_funUpdateStatusKinect) m_funUpdateStatusKinect(L"k4a device was open, but failed to start imus.");
+			if (m_funPrintMessage) m_funPrintMessage(SCT_Kinect, L"k4a device was open, but failed to start imus.");
 			k4a_device_close(m_Kinect);
 			m_Kinect = NULL;
 			return;
@@ -131,22 +129,22 @@ void KinectAzure::EnsureDefaultSensor()
 
 		// Obtain calibration data
 		k4a_device_get_calibration(m_Kinect, m_KinectConfig.depth_mode, m_KinectConfig.color_resolution, &m_KinectCalibration);
-		if (m_funUpdateStatusKinect) m_funUpdateStatusKinect(L"k4a device is open.");
+		if (m_funPrintMessage) m_funPrintMessage(SCT_Kinect, L"k4a device is open.");
 	}
 
 	// Create body tracker
 	if (!m_KinectBodyTracker)
 	{
-		if (m_funUpdateStatusBodyTracker) m_funUpdateStatusBodyTracker(L"Creating body tracker.");
+		if (m_funPrintMessage) m_funPrintMessage(SCT_BodyTracker, L"Creating body tracker.");
 		result = k4abt_tracker_create(&m_KinectCalibration, &m_KinectBodyTracker);
 		if (K4A_FAILED(result))
 		{
-			if (m_funUpdateStatusBodyTracker) m_funUpdateStatusBodyTracker(L"Failed to create body tracker.");
+			if (m_funPrintMessage) m_funPrintMessage(SCT_BodyTracker, L"Failed to create body tracker.");
 			m_KinectBodyTracker = NULL;
 			return;
 		}
 		else
-			if (m_funUpdateStatusBodyTracker) m_funUpdateStatusBodyTracker(L"Successfully created body tracker.");
+			if (m_funPrintMessage) m_funPrintMessage(SCT_BodyTracker, L"Successfully created body tracker.");
 	}
 }
 
@@ -198,7 +196,7 @@ void KinectAzure::SkeletonUpdate()
 				std::for_each(arr_time.cbegin(), arr_time.cend(), 
 					[&wstr](clock_t t) {wstr += (wstr.empty() ? L"": L", ") + std::to_wstring(t); });
 				wstr = L"Execution time for pop: " + wstr + L" ms";
-				if (m_funUpdateStatusBodyTracker) m_funUpdateStatusBodyTracker(wstr.c_str());
+				if (m_funPrintMessage) m_funPrintMessage(SCT_BodyTracker, wstr.c_str());
 				i = 0;
 			}
 			

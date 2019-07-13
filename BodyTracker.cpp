@@ -60,8 +60,7 @@ BodyTracker::BodyTracker() :
 	m_fFreq(0),
 	m_nNextStatusTime(0LL),
 	m_KinectAzure(
-		std::bind(&BodyTracker::PrintMessage, this, SCT_Kinect, std::placeholders::_1),
-		std::bind(&BodyTracker::PrintMessage, this, SCT_BodyTracker, std::placeholders::_1),
+		std::bind(&BodyTracker::PrintMessage, this, std::placeholders::_1, std::placeholders::_2),
 		std::bind(&BodyTracker::ProcessBody, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
 		std::bind(&BodyTracker::ProcessIMU, this, std::placeholders::_1)
 	),
@@ -459,7 +458,7 @@ void BodyTracker::EnsureRosSocket()
 		if (bRosSocketEnabled)
 		{
 			m_pRosSocket = new RosSocket();
-			m_pRosSocket->setStatusUpdatingFun(std::bind(&BodyTracker::PrintMessage, this, SCT_RosSocket, std::placeholders::_1));
+			m_pRosSocket->setStatusUpdatingFun(std::bind(&BodyTracker::PrintMessage, this, std::placeholders::_1, std::placeholders::_2));
 		}
 		else
 		{

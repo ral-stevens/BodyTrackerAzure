@@ -19,7 +19,7 @@ class RosSocket
 public:
 	RosSocket();
 	~RosSocket();
-	void setStatusUpdatingFun(std::function<void(const wchar_t *)> fun);
+	void setStatusUpdatingFun(std::function<void(static_control_type, const wchar_t*)> fun);
 	void updateStatus();
 	RosSocketStatus_t getStatus();
 	void threadProc();
@@ -36,7 +36,7 @@ private:
 
 	// Status update
 	std::wstring            m_WstrStatusMessage;
-	std::function<void(const wchar_t *)>   m_funUpdateStatus;
+	std::function<void(static_control_type, const wchar_t *)>   m_funPrintMessage;
 	
 
 	// Human joint messages

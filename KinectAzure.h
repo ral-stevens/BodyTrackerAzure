@@ -17,14 +17,12 @@ private:
 
 	// Status update
 	std::wstring            m_WstrStatusMessage;
-	std::function<void(const wchar_t *)>   m_funUpdateStatusKinect;
-	std::function<void(const wchar_t *)>   m_funUpdateStatusBodyTracker;
+	std::function<void(static_control_type, const wchar_t *)>   m_funPrintMessage;
 	std::function<void(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)>   m_funProcessBody;
 	std::function<void(const k4a_imu_sample_t & ImuSample)> m_funProcessIMU;
 public:
 	KinectAzure(
-		std::function<void(const wchar_t*)> funUpdateStatusKinect,
-		std::function<void(const wchar_t*)> funUpdateStatusBodyTracker,
+		std::function<void(static_control_type, const wchar_t*)> funPrintMessage,
 		std::function<void(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)> funProcessBody,
 		std::function<void(const k4a_imu_sample_t & ImuSample)> funProcessIMU
 	);
