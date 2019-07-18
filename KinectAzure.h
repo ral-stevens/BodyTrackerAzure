@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "RosSocket.h"
 
+const size_t MAX_NUM_BODIES = 6;
 
 class KinectAzure
 {

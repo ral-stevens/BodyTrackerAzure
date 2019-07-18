@@ -482,10 +482,19 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
 	INT64 t0Windows = GetTickCount64();
 	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Connected)
 	{
+		// Publish only the body with min dist
+		float min_dist = std::numeric_limits<float>::infinity();
+		int min_dist_i = 0;
 		for (int i = 0; i < nBodyCount; i++) {
-			m_pRosSocket->publishMsgSkeleton(pSkeleton[i], pID[i], nTime);
-
+			const k4a_float3_t & position_pelvis = pSkeleton[i].joints[K4ABT_JOINT_PELVIS].position;
+			float dist = hypot(position_pelvis.xyz.x, position_pelvis.xyz.z);
+			if (min_dist > dist)
+			{
+				min_dist = dist;
+				min_dist_i = i;
+			}
 		}
+		m_pRosSocket->publishMsgSkeleton(pSkeleton[min_dist_i], pID[min_dist_i], nTime);
 	}
 
     if (m_hWnd)

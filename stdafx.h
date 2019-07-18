@@ -35,6 +35,7 @@
 #include <codecvt>
 #include <k4a/k4a.h>
 #include <k4abt.h>
+#include <limits>
 
 #pragma comment (lib, "d2d1.lib")
 

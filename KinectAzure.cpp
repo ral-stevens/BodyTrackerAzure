@@ -203,7 +203,6 @@ void KinectAzure::SkeletonUpdate()
 			if (pop_result == K4A_WAIT_RESULT_SUCCEEDED)
 			{
 				uint64_t timestamp_usec = k4abt_frame_get_timestamp_usec(body_frame);
-				const size_t MAX_NUM_BODIES = 6;
 				size_t num_bodies = min(MAX_NUM_BODIES, k4abt_frame_get_num_bodies(body_frame));
 				uint32_t body_ids[MAX_NUM_BODIES] = {};
 				k4abt_skeleton_t skeletons[MAX_NUM_BODIES] = {};
