@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="BodyTracker.cpp" />
     <ClCompile Include="Config.cpp" />
+    <ClCompile Include="CsvLogger.cpp" />
     <ClCompile Include="KinectAzure.cpp" />
     <ClCompile Include="RosSocket.cpp" />
     <ClCompile Include="rosserial_windows\ros_lib\duration.cpp" />
@@ -37,6 +38,7 @@
   <ItemGroup>
     <ClInclude Include="BodyTracker.h" />
     <ClInclude Include="Config.h" />
+    <ClInclude Include="CsvLogger.h" />
     <ClInclude Include="KinectAzure.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="RosSocket.h" />

@@ -2,6 +2,7 @@
 #include <chrono>
 #include <ctime>
 #include <array>
+#include "CsvLogger.h"
 
 KinectAzure::KinectAzure(
 	std::function<void(static_control_type, const wchar_t*)> funPrintMessage,
@@ -263,6 +264,13 @@ void KinectAzure::ImuUpdate()
 	if (imu_result == K4A_WAIT_RESULT_SUCCEEDED)
 	{
 		m_funProcessIMU(imu_data);
+		
+		static CsvLogger logger("imu", vector_header_value_t{
+			 {"acc_timestamp_usec", &imu_data.acc_timestamp_usec},
+			 {"gyro_timestamp_usec", &imu_data.gyro_timestamp_usec}
+		});
+		
+		logger.log();
 	}
 }
 

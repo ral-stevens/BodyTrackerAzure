@@ -3,3 +3,4 @@ ros_master=155.246.44.65:11411
 RosSocket/enabled=true
 RosSocket/timeout_ms=3000
 k4a/depth_mode=3
+CsvLogger/dataPath=data

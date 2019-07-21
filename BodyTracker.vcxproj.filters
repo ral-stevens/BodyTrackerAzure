@@ -25,6 +25,9 @@
     <ClCompile Include="KinectAzure.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="CsvLogger.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rosserial_windows\ros_lib\WindowsSocket.h">
@@ -52,6 +55,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="KinectAzure.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="CsvLogger.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
