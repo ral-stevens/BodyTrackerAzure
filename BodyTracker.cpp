@@ -727,7 +727,7 @@ D2D1_POINT_2F BodyTracker::BodyToScreen(const k4a_float3_t& point3d, int width_r
 	float ratio_height = static_cast<float>(height_rendering) / height_actual;
 	float ratio_min = min(ratio_width, ratio_height);
 
-	float px = width_rendering / 2 + (point2d.xy.x - width_actual / 2) * ratio_min;
+	float px = width_rendering / 2 + (-point2d.xy.x + width_actual / 2) * ratio_min;
 	float py = point2d.xy.y * ratio_min;
 	return D2D1::Point2F(px, py);
 }
