@@ -23,6 +23,14 @@ enum RosSocketStatus_t
 
 class RosSocket
 {
+private:
+	std::string m_strCameraBaseFrame = "kinect_azure/camera_base";
+	//std::string m_strRgbFrame = "kinect_azure/rgb_camera_link";
+	std::string m_strDepthFrame = "kinect_azure/depth_camera_link";
+	std::string m_strImuFrame = "kinect_azure/imu_link";
+
+	std::string m_strSkeletonTopic = "/skeleton";
+	std::string m_strImuTopic = "/kinect_azure_imu";
 public:
 	RosSocket();
 	~RosSocket();
@@ -56,14 +64,6 @@ private:
 	ros::Publisher			                m_PubSkeleton;
 	ros::Publisher			                m_PubIMU;
 	std::array<tf::TransformBroadcaster, 3> m_TfBroadcasters;
-
-	std::string m_strCameraBaseFrame = "kinect_azure/camera_base";
-	//std::string m_strRgbFrame = "kinect_azure/rgb_camera_link";
-	std::string m_strDepthFrame = "kinect_azure/depth_camera_link";
-	std::string m_strImuFrame = "kinect_azure/imu_link";
-
-	std::string m_strSkeletonTopic = "/skeleton";
-	std::string m_strImuTopic = "/kinect_azure_imu";
 
 	std::mutex              m_Mutex;
 	std::thread             m_Thread;
