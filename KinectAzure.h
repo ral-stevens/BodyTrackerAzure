@@ -15,23 +15,27 @@ private:
 	bool                    m_bTerminating;
 	std::thread             m_ThreadSkeleton;
 	std::thread             m_ThreadImu;
+	std::thread             m_ThreadStaticTf;
 
 	// Status update
 	std::wstring            m_WstrStatusMessage;
 	std::function<void(static_control_type, const wchar_t *)>   m_funPrintMessage;
 	std::function<void(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)>   m_funProcessBody;
 	std::function<void(const k4a_imu_sample_t & ImuSample)> m_funProcessIMU;
+	std::function<void()> m_funBroadcastStaticTf;
 public:
 	KinectAzure(
 		std::function<void(static_control_type, const wchar_t*)> funPrintMessage,
 		std::function<void(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)> funProcessBody,
-		std::function<void(const k4a_imu_sample_t & ImuSample)> funProcessIMU
+		std::function<void(const k4a_imu_sample_t & ImuSample)> funProcessIMU,
+		std::function<void()> m_funBroadcastStaticTf
 	);
 	
 	~KinectAzure();
 	void Terminate();
 	void SkeletonProc();
 	void ImuProc();
+	void StaticTfProc();
 	void setParams();
 	void EnsureDefaultSensor();
 	void ReleaseDefaultSensor();

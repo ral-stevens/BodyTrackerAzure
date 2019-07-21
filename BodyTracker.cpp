@@ -62,7 +62,8 @@ BodyTracker::BodyTracker() :
 	m_KinectAzure(
 		std::bind(&BodyTracker::PrintMessage, this, std::placeholders::_1, std::placeholders::_2),
 		std::bind(&BodyTracker::ProcessBody, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
-		std::bind(&BodyTracker::ProcessIMU, this, std::placeholders::_1)
+		std::bind(&BodyTracker::ProcessIMU, this, std::placeholders::_1),
+		std::bind(&BodyTracker::BroadcastStaticTf, this)
 	),
 	m_pD2DFactory(NULL),
 	m_pRenderTarget(NULL),
@@ -608,6 +609,16 @@ void BodyTracker::ProcessIMU(const k4a_imu_sample_t & ImuSample)
 		nNextStatusTime = now + 500;
 		nLastCounter = qpcNow.QuadPart;
 		nSamplesSinceUpdate = 0;
+	}
+}
+
+void BodyTracker::BroadcastStaticTf()
+{
+	const k4a_calibration_t * pCalibration = m_KinectAzure.GetKinectCalibrationPointer();
+	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Connected && pCalibration)
+	{
+		m_pRosSocket->broadcastDepthTf(pCalibration);
+		m_pRosSocket->broadcastImuTf(pCalibration);
 	}
 }
 

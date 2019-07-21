@@ -6,18 +6,22 @@
 KinectAzure::KinectAzure(
 	std::function<void(static_control_type, const wchar_t*)> funPrintMessage,
 	std::function<void(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)> funProcessBody,
-	std::function<void(const k4a_imu_sample_t & ImuSample)> funProcessIMU
+	std::function<void(const k4a_imu_sample_t & ImuSample)> funProcessIMU,
+	std::function<void()> funBroadcastStaticTf
 ):
 	m_Kinect(NULL),
 	m_KinectConfig(K4A_DEVICE_CONFIG_INIT_DISABLE_ALL),
+	m_KinectCalibration({}),
 	m_KinectBodyTracker(NULL),
 	m_pSkeletonClosest(nullptr),
 	m_bTerminating(false),
 	m_ThreadSkeleton(&KinectAzure::SkeletonProc, this),
 	m_ThreadImu(&KinectAzure::ImuProc, this),
+	m_ThreadStaticTf(&KinectAzure::StaticTfProc, this),
 	m_funPrintMessage(funPrintMessage),
 	m_funProcessBody(funProcessBody),
-	m_funProcessIMU(funProcessIMU)
+	m_funProcessIMU(funProcessIMU),
+	m_funBroadcastStaticTf(funBroadcastStaticTf)
 {
 	setParams();
 }
@@ -33,6 +37,7 @@ void KinectAzure::Terminate()
 	m_bTerminating = true;
 	m_ThreadSkeleton.join();
 	m_ThreadImu.join();
+	m_ThreadStaticTf.join();
 	ReleaseDefaultSensor();
 	
 }
@@ -56,6 +61,20 @@ void KinectAzure::ImuProc()
 	{
 		if (m_Kinect)
 			ImuUpdate();
+		else
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	}
+}
+
+void KinectAzure::StaticTfProc()
+{
+	while (!m_bTerminating)
+	{
+		if (m_Kinect)
+		{
+			m_funBroadcastStaticTf();
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 		else
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
@@ -249,6 +268,9 @@ void KinectAzure::ImuUpdate()
 
 const k4a_calibration_t * KinectAzure::GetKinectCalibrationPointer()
 {
-	return &m_KinectCalibration;
+	if (m_KinectCalibration.depth_mode != 0)
+		return &m_KinectCalibration;
+	else
+		return nullptr;
 }
 

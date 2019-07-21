@@ -121,6 +121,7 @@ private:
     /// </summary>
     void ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID);
     void ProcessIMU(const k4a_imu_sample_t & ImuSample);
+	void BroadcastStaticTf();
 
     /// <summary>
     /// Set the status bar message

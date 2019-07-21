@@ -37,6 +37,9 @@
 #include <k4abt.h>
 #include <limits>
 
+#define _USE_MATH_DEFINES
+#include <cmath>
+
 #pragma comment (lib, "d2d1.lib")
 
 #ifdef _UNICODE

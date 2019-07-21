@@ -2,7 +2,6 @@
 #include "RosSocket.h"
 #include <string>
 
-
 RosSocket::RosSocket() :
 	m_strRosMaster("192.168.1.116:11411"),
 	m_nStatus(RSS_Connecting),
@@ -10,11 +9,12 @@ RosSocket::RosSocket() :
 	m_nLastUpdateTime(GetTickCount64()),
 	//m_nTimeout_ms(2000),
 	m_nSpinCounter(0),
-	m_PubSkeleton("/skeleton", &m_MsgSkeleton),
-	m_PubIMU("/kinect_azure_imu", &m_MsgIMU),
+	m_PubSkeleton(m_strImuTopic.c_str(), &m_MsgSkeleton),
+	m_PubIMU(m_strSkeletonTopic.c_str(), &m_MsgIMU),
 	m_Thread(&RosSocket::threadProc, this)
 {	
-	
+	std::for_each(m_TfBroadcasters.begin(), m_TfBroadcasters.end(), 
+		[&](tf::TransformBroadcaster & br) {br.init(nh); });
 }
 
 
@@ -72,12 +72,12 @@ void RosSocket::threadProc()
 	nh.initNode(pszRosMaster.get());
 
 	// Prepare for publishing skeleton data
-	m_MsgSkeleton.header.frame_id = "/kinect_azure_link";
+	m_MsgSkeleton.header.frame_id = m_strDepthFrame.c_str();
 	m_MsgSkeleton.header.seq = 0;
 	nh.advertise(m_PubSkeleton);
 
 	// Prepare for publishing IMU data
-	m_MsgIMU.header.frame_id = "/kinect_azure_link";
+	m_MsgIMU.header.frame_id = m_strImuFrame.c_str();
 	m_MsgIMU.header.seq = 0;
 	nh.advertise(m_PubIMU);
 
@@ -93,8 +93,26 @@ void RosSocket::threadProc()
 
 void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t id, uint64_t k4a_timestamp_usec)
 {
+	// Broadcast transform
+	static geometry_msgs::TransformStamped transform_stamped;
+	transform_stamped.header.stamp = nh.now();
+	transform_stamped.header.frame_id = m_strDepthFrame.c_str();
+	transform_stamped.header.seq++;
+	transform_stamped.child_frame_id = "skeleton_pelvis_link";
+
+	const k4abt_joint_t & pelvis = skeleton.joints[K4ABT_JOINT_PELVIS];
+	transform_stamped.transform.translation.x = pelvis.position.xyz.x;
+	transform_stamped.transform.translation.y = pelvis.position.xyz.y;
+	transform_stamped.transform.translation.z = pelvis.position.xyz.z;
+	transform_stamped.transform.rotation.w = pelvis.orientation.wxyz.w;
+	transform_stamped.transform.rotation.x = pelvis.orientation.wxyz.x;
+	transform_stamped.transform.rotation.y = pelvis.orientation.wxyz.y;
+	transform_stamped.transform.rotation.z = pelvis.orientation.wxyz.z;
+	m_TfBroadcasters[0].sendTransform(transform_stamped);
+
+	// Prepare skeleton message to be published
 	m_MsgSkeleton.header.seq++;
-	m_MsgSkeleton.header.stamp = nh.now();
+	m_MsgSkeleton.header.stamp = transform_stamped.header.stamp;
 	m_MsgSkeleton.id = id;
 	m_MsgSkeleton.k4a_timestamp_usec = k4a_timestamp_usec;
 
@@ -133,4 +151,110 @@ void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 	m_MsgIMU.acc_timestamp_usec = imu_sample.acc_timestamp_usec;
 
 	m_PubIMU.publish(&m_MsgIMU);
+}
+
+void RosSocket::broadcastDepthTf(const k4a_calibration_t * k4a_calibration)
+{
+	geometry_msgs::TransformStamped static_transform;
+
+	static_transform.header.stamp = nh.now();
+	static_transform.header.frame_id = m_strCameraBaseFrame.c_str();
+	static_transform.child_frame_id = m_strDepthFrame.c_str();
+
+	// Translation
+	static_transform.transform.translation.x = 0.0 / 1000.0;
+	static_transform.transform.translation.y = 0.0 / 1000.0;
+	static_transform.transform.translation.z = 1.8 / 1000.0;
+
+	// Rotation
+	tf2::Quaternion depth_rotation = getDepthToBaseRotationCorrection(k4a_calibration);
+
+	static_transform.transform.rotation.x = depth_rotation.x();
+	static_transform.transform.rotation.y = depth_rotation.y();
+	static_transform.transform.rotation.z = depth_rotation.z();
+	static_transform.transform.rotation.w = depth_rotation.w();
+
+	m_TfBroadcasters[1].sendTransform(static_transform);
+}
+
+void RosSocket::broadcastImuTf(const k4a_calibration_t * k4a_calibration)
+{
+	k4a_float3_t origin = { 0.0f, 0.0f, 0.0f };
+	k4a_float3_t target = { 0.0f, 0.0f, 0.0f };
+
+	k4a_calibration_3d_to_3d(k4a_calibration, &origin,
+		K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_ACCEL, &target);
+
+	geometry_msgs::TransformStamped static_transform;
+
+	static_transform.header.stamp = nh.now();
+	static_transform.header.frame_id = m_strCameraBaseFrame.c_str();
+	static_transform.child_frame_id = m_strImuFrame.c_str();
+
+	tf2::Vector3 extrinsic_translation((target.xyz.x / 1000.0f), (target.xyz.y / -1000.0f), (target.xyz.z / -1000.0f));
+	extrinsic_translation += getDepthToBaseTranslationCorrection();
+
+	static_transform.transform.translation.x = extrinsic_translation.x();
+	static_transform.transform.translation.y = extrinsic_translation.y();
+	static_transform.transform.translation.z = extrinsic_translation.z();
+
+	const k4a_calibration_extrinsics_t * imu_extrinsics = &k4a_calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_ACCEL];
+
+	tf2::Matrix3x3 imu_matrix(imu_extrinsics->rotation[0], imu_extrinsics->rotation[1], imu_extrinsics->rotation[2],
+		imu_extrinsics->rotation[3], imu_extrinsics->rotation[4], imu_extrinsics->rotation[5],
+		imu_extrinsics->rotation[6], imu_extrinsics->rotation[7], imu_extrinsics->rotation[8]);
+
+	double yaw, pitch, roll;
+	imu_matrix.getEulerYPR(yaw, pitch, roll);
+
+	tf2::Quaternion imu_rotation;
+	imu_rotation.setRPY(
+		yaw + (90) * M_PI / 180.0,
+		roll + (-84) * M_PI / 180.0,   // Rotation around the Y axis must include a 6 degree correction for a static offset collected during calibration
+		pitch + (0) * M_PI / 180.0);
+
+	static_transform.transform.rotation.x = imu_rotation.x();
+	static_transform.transform.rotation.y = imu_rotation.y();
+	static_transform.transform.rotation.z = imu_rotation.z();
+	static_transform.transform.rotation.w = imu_rotation.w();
+
+	m_TfBroadcasters[2].sendTransform(static_transform);
+}
+
+
+tf2::Vector3 getDepthToBaseTranslationCorrection()
+{
+	return tf2::Vector3(DEPTH_CAMERA_OFFSET_MM_X / 1000.0f, DEPTH_CAMERA_OFFSET_MM_Y / 1000.0f, DEPTH_CAMERA_OFFSET_MM_Z / 1000.0f);
+}
+
+tf2::Quaternion getDepthToBaseRotationCorrection(const k4a_calibration_t * k4a_calibration)
+{
+	tf2::Quaternion ros_camera_rotation; // ROS camera co-ordinate system requires rotating the entire camera relative to camera_base
+	tf2::Quaternion depth_rotation;      // K4A depth camera has different declinations based on the operating mode (NFOV or WFOV)
+
+	// WFOV modes are rotated down by 7.3 degrees
+	if (k4a_calibration->depth_mode == K4A_DEPTH_MODE_WFOV_UNBINNED || k4a_calibration->depth_mode == K4A_DEPTH_MODE_WFOV_2X2BINNED)
+	{
+		depth_rotation.setEuler(0, (-7.3) * M_PI / 180.0, 0);
+	}
+	// NFOV modes are rotated down by 6 degrees
+	else if (k4a_calibration->depth_mode == K4A_DEPTH_MODE_NFOV_UNBINNED || k4a_calibration->depth_mode == K4A_DEPTH_MODE_NFOV_2X2BINNED)
+	{
+		depth_rotation.setEuler(0, (-6.0) * M_PI / 180.0, 0);
+	}
+	// Passive IR mode doesn't have a rotation?
+	// TODO: verify that passive IR really doesn't have a rotation
+	else if (k4a_calibration->depth_mode == K4A_DEPTH_MODE_PASSIVE_IR)
+	{
+		depth_rotation.setEuler(0, 0, 0);
+	}
+	else
+	{
+		throw(std::runtime_error("Could not determine depth camera mode for rotation correction"));
+		depth_rotation.setEuler(0, 0, 0);
+	}
+
+	ros_camera_rotation.setEuler(M_PI / -2.0f, M_PI, (M_PI / 2.0f));
+
+	return ros_camera_rotation * depth_rotation;
 }
