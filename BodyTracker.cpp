@@ -488,7 +488,9 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
 		int min_dist_i = 0;
 		for (int i = 0; i < nBodyCount; i++) {
 			const k4a_float3_t & position_pelvis = pSkeleton[i].joints[K4ABT_JOINT_PELVIS].position;
-			float dist = hypot(position_pelvis.xyz.x, position_pelvis.xyz.z);
+			const float & px = position_pelvis.xyz.x;
+			const float & pz = position_pelvis.xyz.z;
+			float dist = sqrt(px * px + pz * pz);
 			if (min_dist > dist)
 			{
 				min_dist = dist;

@@ -48,7 +48,8 @@ protected:
 public:
 	// Constructor of BaseLogger
 	// Argument "name" is suffixed to the file name.
-	CsvLogger(const char * fileName, vector_header_value_t && vectorHeaderValue);
+	// Be sure to instantiate it as a member variable or static local variable
+	CsvLogger(const char * name, vector_header_value_t && vectorHeaderValue);
 	~CsvLogger();
 
 	template <bool isHeader=false>
