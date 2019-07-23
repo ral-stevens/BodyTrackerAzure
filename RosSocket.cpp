@@ -94,6 +94,19 @@ void RosSocket::threadProc()
 
 void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t id, uint64_t k4a_timestamp_usec)
 {
+	const k4abt_joint_t & pelvis = skeleton.joints[K4ABT_JOINT_PELVIS];
+	const float & px = pelvis.position.xyz.x;
+	const float & py = pelvis.position.xyz.y;
+	const float & pz = pelvis.position.xyz.z;
+	
+	const float & qw = pelvis.orientation.wxyz.w;
+	const float & qx = pelvis.orientation.wxyz.x;
+	const float & qy = pelvis.orientation.wxyz.y;
+	const float & qz = pelvis.orientation.wxyz.z;
+
+	// Sometimes, the quaternion has four zero components. If so, discard this skeleton.
+	if ((qw * qw + qx * qx + qy * qy + qz * qz) < 0.8) return;
+
 	// Broadcast transform
 	static geometry_msgs::TransformStamped transform_stamped;
 	transform_stamped.header.stamp = nh.now();
@@ -101,34 +114,21 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 	transform_stamped.header.seq++;
 	transform_stamped.child_frame_id = "skeleton_pelvis_link";
 
-	const k4abt_joint_t & pelvis = skeleton.joints[K4ABT_JOINT_PELVIS];
-	const float & px = pelvis.position.xyz.x;
-	const float & py = pelvis.position.xyz.y;
-	const float & pz = pelvis.position.xyz.z;
 	transform_stamped.transform.translation.x = px;
 	transform_stamped.transform.translation.y = py;
 	transform_stamped.transform.translation.z = pz;
-	
-	const float & qw = pelvis.orientation.wxyz.w;
-	const float & qx = pelvis.orientation.wxyz.x;
-	const float & qy = pelvis.orientation.wxyz.y;
-	const float & qz = pelvis.orientation.wxyz.z;
-	// Sometimes, the quaternion has four zero components. If so, discard it.
-	if ((qw * qw + qx * qx + qy * qy + qz * qz) > 0.8)
-	{
-		transform_stamped.transform.rotation.w = qw;
-		transform_stamped.transform.rotation.x = qx;
-		transform_stamped.transform.rotation.y = qy;
-		transform_stamped.transform.rotation.z = qz;
-	}
+	transform_stamped.transform.rotation.w = qw;
+	transform_stamped.transform.rotation.x = qx;
+	transform_stamped.transform.rotation.y = qy;
+	transform_stamped.transform.rotation.z = qz;
 	m_TfBroadcasters[0].sendTransform(transform_stamped);
 
 	uint64_t ros_ts = static_cast<uint64_t>(transform_stamped.header.stamp.toNsec());
 	uint64_t win_ts = GetTickCount64();
 	static CsvLogger logger("pelvis_pose", vector_header_value_t{
-		{"ros_ts", &ros_ts},
-		{"win_ts", &win_ts},
-		{"k4a_ts", &k4a_timestamp_usec},
+		{"ros_ts_nsec", &ros_ts},
+		{"win_ts_msec", &win_ts},
+		{"k4a_ts_usec", &k4a_timestamp_usec},
 		{"px", &px}, {"py", &py}, {"pz", &pz}, // position
 		{"qw", &qw}, {"qx", &qx}, {"qy", &qy}, {"qz", &qz} // orientation
 		});
@@ -136,7 +136,7 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 
 	// Prepare skeleton message to be published
 	m_MsgSkeleton.header.seq++;
-	m_MsgSkeleton.header.stamp = transform_stamped.header.stamp;
+	m_MsgSkeleton.header.stamp = nh.now();
 	m_MsgSkeleton.id = id;
 	m_MsgSkeleton.k4a_timestamp_usec = k4a_timestamp_usec;
 
@@ -179,10 +179,16 @@ void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 	uint64_t ros_ts = static_cast<uint64_t>(m_MsgIMU.header.stamp.toNsec());
 	uint64_t win_ts = GetTickCount64();
 	static CsvLogger logger("imu", vector_header_value_t{
-		{"ros_ts", &ros_ts},
-		{"win_ts", &win_ts},
-		{"acc_timestamp_usec", &imu_sample.acc_timestamp_usec},
-		{"gyro_timestamp_usec", &imu_sample.gyro_timestamp_usec}
+		{"ros_ts_nsec", &ros_ts},
+		{"win_ts_msec", &win_ts},
+		{"acc_ts_usec", &imu_sample.acc_timestamp_usec},
+		{"gyro_ts_usec", &imu_sample.gyro_timestamp_usec},
+		{"wx", &imu_sample.gyro_sample.xyz.x},
+		{"wy", &imu_sample.gyro_sample.xyz.y},
+		{"wz", &imu_sample.gyro_sample.xyz.z},
+		{"vx", &imu_sample.acc_sample.xyz.x},
+		{"vy", &imu_sample.acc_sample.xyz.y},
+		{"vz", &imu_sample.acc_sample.xyz.z}
 		});
 	logger.log();
 }
