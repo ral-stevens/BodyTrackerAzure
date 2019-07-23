@@ -123,7 +123,7 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 	}
 	m_TfBroadcasters[0].sendTransform(transform_stamped);
 
-	uint64_t ros_ts = static_cast<uint64_t>(transform_stamped.header.stamp.toSec() * 1000);
+	uint64_t ros_ts = static_cast<uint64_t>(transform_stamped.header.stamp.toNsec());
 	uint64_t win_ts = GetTickCount64();
 	static CsvLogger logger("pelvis_pose", vector_header_value_t{
 		{"ros_ts", &ros_ts},
@@ -176,7 +176,7 @@ void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 
 	m_PubIMU.publish(&m_MsgIMU);
 
-	uint64_t ros_ts = static_cast<uint64_t>(m_MsgIMU.header.stamp.toSec() * 1000);
+	uint64_t ros_ts = static_cast<uint64_t>(m_MsgIMU.header.stamp.toNsec());
 	uint64_t win_ts = GetTickCount64();
 	static CsvLogger logger("imu", vector_header_value_t{
 		{"ros_ts", &ros_ts},
