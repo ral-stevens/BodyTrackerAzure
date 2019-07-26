@@ -32,3 +32,5 @@ CalibSolverReport.txt
 *.exe
 *.ilk
 x64/Debug/config.txt
+*.iobj
+*.ipdb
