@@ -1,12 +1,8 @@
 Debug/*
-!Debug/AriaDebugVC15.dll
-!Debug/ceres.dll
-!Debug/libglog.dll
 *.fig
 *.zip
 
 Release/*
-!Release/AriaVC15.dll
 .vs
 *.aps
 *.csv
@@ -20,7 +16,6 @@ desiredPath*
 
 BodyTracker-Debug.sln
 test
-sophus/
 CalibSolverReport.txt
 
 *.obj
@@ -31,6 +26,5 @@ CalibSolverReport.txt
 *.log
 *.exe
 *.ilk
-x64/Debug/config.txt
 *.iobj
 *.ipdb

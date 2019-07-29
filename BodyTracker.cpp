@@ -646,8 +646,10 @@ bool BodyTracker::SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec,
 
 void BodyTracker::PrintMessage(static_control_type SCT, const wchar_t * szMessage)
 {
-	DWORD dw;
-	if (m_hWnd)
+	const INT64 minUpdateWaitTime = 100; // Wait 100 ms before printing the next update
+	static std::array<INT64, SCT_Count> lastUpdateTimes = {};
+	INT64 stampNow = GetTickCount64();
+	if (m_hWnd && lastUpdateTimes[SCT] + minUpdateWaitTime < stampNow)
 	{
 		const size_t BUFFER_LEN = 128;
 		wchar_t pszText[BUFFER_LEN];
@@ -655,6 +657,7 @@ void BodyTracker::PrintMessage(static_control_type SCT, const wchar_t * szMessag
 			(GetTickCount64() - m_nStartTime) / 1.0e3,
 			szMessage);
 		SetWindowText(m_hWndStaticControls[SCT], pszText);
+		lastUpdateTimes[SCT] = stampNow;
 	}
 }
 

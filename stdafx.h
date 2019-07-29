@@ -80,6 +80,8 @@ enum static_control_type
 	SCT_BodyTracker,
 	SCT_IMU,
 	SCT_RosSocket,
+	SCT_RosSocket_Skeleton,
+	SCT_RosSocket_IMU,
 	SCT_Params,
 	SCT_Count
 };

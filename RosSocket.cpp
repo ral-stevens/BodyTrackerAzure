@@ -2,6 +2,7 @@
 #include "RosSocket.h"
 #include <string>
 #include "CsvLogger.h"
+#include <sstream>
 
 RosSocket::RosSocket() :
 	m_strRosMaster("192.168.1.116:11411"),
@@ -94,6 +95,7 @@ void RosSocket::threadProc()
 
 void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t id, uint64_t k4a_timestamp_usec)
 {
+	std::wstringstream wss;
 	const k4abt_joint_t & pelvis = skeleton.joints[K4ABT_JOINT_PELVIS];
 	const float & px = pelvis.position.xyz.x;
 	const float & py = pelvis.position.xyz.y;
@@ -122,75 +124,100 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 	transform_stamped.transform.rotation.y = qy;
 	transform_stamped.transform.rotation.z = qz;
 	m_TfBroadcasters[0].sendTransform(transform_stamped);
+	wss << L"Published pelvis tf with seq = " << transform_stamped.header.seq << L". ";
 
-	uint64_t ros_ts = static_cast<uint64_t>(transform_stamped.header.stamp.toNsec());
-	uint64_t win_ts = GetTickCount64();
-	static CsvLogger logger("pelvis_pose", vector_header_value_t{
-		{"ros_ts_nsec", &ros_ts},
-		{"win_ts_msec", &win_ts},
-		{"k4a_ts_usec", &k4a_timestamp_usec},
-		{"px", &px}, {"py", &py}, {"pz", &pz}, // position
-		{"qw", &qw}, {"qx", &qx}, {"qy", &qy}, {"qz", &qz} // orientation
-		});
-	logger.log();
+	bool bSkeletonPubEnabled = false;
+	Config::Instance()->assign("RosSocket/skeletonPub/enabled", bSkeletonPubEnabled);
+	if (bSkeletonPubEnabled) 
+	{
+		uint64_t ros_ts = static_cast<uint64_t>(transform_stamped.header.stamp.toNsec());
+		uint64_t win_ts = GetTickCount64();
+		static CsvLogger logger("pelvis_pose", vector_header_value_t{
+			{"ros_ts_nsec", &ros_ts},
+			{"win_ts_msec", &win_ts},
+			{"k4a_ts_usec", &k4a_timestamp_usec},
+			{"px", &px}, {"py", &py}, {"pz", &pz}, // position
+			{"qw", &qw}, {"qx", &qx}, {"qy", &qy}, {"qz", &qz} // orientation
+			});
+		logger.log();
 
-	// Prepare skeleton message to be published
-	m_MsgSkeleton.header.seq++;
-	m_MsgSkeleton.header.stamp = nh.now();
-	m_MsgSkeleton.id = id;
-	m_MsgSkeleton.k4a_timestamp_usec = k4a_timestamp_usec;
+		// Prepare skeleton message to be published
+		m_MsgSkeleton.header.seq++;
+		m_MsgSkeleton.header.stamp = nh.now();
+		m_MsgSkeleton.id = id;
+		m_MsgSkeleton.k4a_timestamp_usec = k4a_timestamp_usec;
 
-	geometry_msgs::Point jointPoints[K4ABT_JOINT_COUNT];
-	for (int i = 0; i < K4ABT_JOINT_COUNT; i++) {
-		geometry_msgs::Point & position_lhs = m_MsgSkeleton.poses[i].position;
-		const k4a_float3_t & position_rhs = skeleton.joints[i].position;
-		position_lhs.x = position_rhs.xyz.x;
-		position_lhs.y = position_rhs.xyz.y;
-		position_lhs.z = position_rhs.xyz.z;
+		geometry_msgs::Point jointPoints[K4ABT_JOINT_COUNT];
+		for (int i = 0; i < K4ABT_JOINT_COUNT; i++) {
+			geometry_msgs::Point & position_lhs = m_MsgSkeleton.poses[i].position;
+			const k4a_float3_t & position_rhs = skeleton.joints[i].position;
+			position_lhs.x = position_rhs.xyz.x;
+			position_lhs.y = position_rhs.xyz.y;
+			position_lhs.z = position_rhs.xyz.z;
 
-		geometry_msgs::Quaternion & orientation_lhs = m_MsgSkeleton.poses[i].orientation;
-		const k4a_quaternion_t & orientation_rhs = skeleton.joints[i].orientation;
-		orientation_lhs.x = orientation_rhs.wxyz.x;
-		orientation_lhs.y = orientation_rhs.wxyz.y;
-		orientation_lhs.z = orientation_rhs.wxyz.z;
-		orientation_lhs.w = orientation_rhs.wxyz.w;
+			geometry_msgs::Quaternion & orientation_lhs = m_MsgSkeleton.poses[i].orientation;
+			const k4a_quaternion_t & orientation_rhs = skeleton.joints[i].orientation;
+			orientation_lhs.x = orientation_rhs.wxyz.x;
+			orientation_lhs.y = orientation_rhs.wxyz.y;
+			orientation_lhs.z = orientation_rhs.wxyz.z;
+			orientation_lhs.w = orientation_rhs.wxyz.w;
+		}
+
+		m_PubSkeleton.publish(&m_MsgSkeleton);
+		wss << L"Published skeleton msg with seq = " << m_MsgSkeleton.header.seq;
 	}
-
-	m_PubSkeleton.publish(&m_MsgSkeleton);
+	else
+	{
+		wss << L"Skeleton msg publisher disabled.";
+	}
+	if (m_funPrintMessage) m_funPrintMessage(SCT_RosSocket_Skeleton, wss.str().c_str());
 }
 
 void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 {
-	m_MsgIMU.header.seq++;
-	m_MsgIMU.header.stamp = nh.now();
+	std::wstringstream wss;
+	bool bImuPubEnabled = false;
+	Config::Instance()->assign("RosSocket/imuPub/enabled", bImuPubEnabled);
+	if (bImuPubEnabled)
+	{ 
+		m_MsgIMU.header.seq++;
+		m_MsgIMU.header.stamp = nh.now();
 
-	m_MsgIMU.angular_velocity.x = imu_sample.gyro_sample.xyz.x;
-	m_MsgIMU.angular_velocity.y = imu_sample.gyro_sample.xyz.y;
-	m_MsgIMU.angular_velocity.z = imu_sample.gyro_sample.xyz.z;
-	m_MsgIMU.gyro_timestamp_usec = imu_sample.gyro_timestamp_usec;
+		m_MsgIMU.angular_velocity.x = imu_sample.gyro_sample.xyz.x;
+		m_MsgIMU.angular_velocity.y = imu_sample.gyro_sample.xyz.y;
+		m_MsgIMU.angular_velocity.z = imu_sample.gyro_sample.xyz.z;
+		m_MsgIMU.gyro_timestamp_usec = imu_sample.gyro_timestamp_usec;
 
-	m_MsgIMU.linear_acceleration.x = imu_sample.acc_sample.xyz.x;
-	m_MsgIMU.linear_acceleration.y = imu_sample.acc_sample.xyz.y;
-	m_MsgIMU.linear_acceleration.z = imu_sample.acc_sample.xyz.z;
-	m_MsgIMU.acc_timestamp_usec = imu_sample.acc_timestamp_usec;
+		m_MsgIMU.linear_acceleration.x = imu_sample.acc_sample.xyz.x;
+		m_MsgIMU.linear_acceleration.y = imu_sample.acc_sample.xyz.y;
+		m_MsgIMU.linear_acceleration.z = imu_sample.acc_sample.xyz.z;
+		m_MsgIMU.acc_timestamp_usec = imu_sample.acc_timestamp_usec;
 
-	m_PubIMU.publish(&m_MsgIMU);
+		m_PubIMU.publish(&m_MsgIMU);
 
-	uint64_t ros_ts = static_cast<uint64_t>(m_MsgIMU.header.stamp.toNsec());
-	uint64_t win_ts = GetTickCount64();
-	static CsvLogger logger("imu", vector_header_value_t{
-		{"ros_ts_nsec", &ros_ts},
-		{"win_ts_msec", &win_ts},
-		{"acc_ts_usec", &imu_sample.acc_timestamp_usec},
-		{"gyro_ts_usec", &imu_sample.gyro_timestamp_usec},
-		{"wx", &imu_sample.gyro_sample.xyz.x},
-		{"wy", &imu_sample.gyro_sample.xyz.y},
-		{"wz", &imu_sample.gyro_sample.xyz.z},
-		{"vx", &imu_sample.acc_sample.xyz.x},
-		{"vy", &imu_sample.acc_sample.xyz.y},
-		{"vz", &imu_sample.acc_sample.xyz.z}
-		});
-	logger.log();
+		uint64_t ros_ts = static_cast<uint64_t>(m_MsgIMU.header.stamp.toNsec());
+		uint64_t win_ts = GetTickCount64();
+		static CsvLogger logger("imu", vector_header_value_t{
+			{"ros_ts_nsec", &ros_ts},
+			{"win_ts_msec", &win_ts},
+			{"acc_ts_usec", &imu_sample.acc_timestamp_usec},
+			{"gyro_ts_usec", &imu_sample.gyro_timestamp_usec},
+			{"wx", &imu_sample.gyro_sample.xyz.x},
+			{"wy", &imu_sample.gyro_sample.xyz.y},
+			{"wz", &imu_sample.gyro_sample.xyz.z},
+			{"vx", &imu_sample.acc_sample.xyz.x},
+			{"vy", &imu_sample.acc_sample.xyz.y},
+			{"vz", &imu_sample.acc_sample.xyz.z}
+			});
+		logger.log();
+		wss << L"Published IMU msg with seq = " << m_MsgIMU.header.seq;
+	}
+	else
+	{
+		wss << L"IMU msg publisher disabled.";
+	}
+	if (m_funPrintMessage) m_funPrintMessage(SCT_RosSocket_IMU, wss.str().c_str());
+
 }
 
 void RosSocket::broadcastDepthTf(const k4a_calibration_t * k4a_calibration)

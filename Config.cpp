@@ -116,8 +116,9 @@ bool Config::assign(const std::string & strKey, bool & bValue)
 		return false; // Failed to find the parameter.
 	else
 	{
-		bool bValueNew = m_mapParams[strKey].compare("1") == 0 || m_mapParams[strKey].compare("true") == 0 ||
-			m_mapParams[strKey].compare("True") == 0 || m_mapParams[strKey].compare("TRUE") == 0;
+		const std::string & strParam = m_mapParams[strKey];
+		bool bValueNew = strParam.compare("1") == 0 || strParam.compare("true") == 0 ||
+			strParam.compare("True") == 0 || strParam.compare("TRUE") == 0;
 		if (bValue != bValueNew)
 		{
 			m_countUpdates++;
