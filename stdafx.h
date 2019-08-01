@@ -78,6 +78,7 @@ enum static_control_type
 {
 	SCT_Kinect = 0,
 	SCT_BodyTracker,
+	SCT_BodyInfo,
 	SCT_IMU,
 	SCT_RosSocket,
 	SCT_RosSocket_Skeleton,

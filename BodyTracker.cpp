@@ -514,6 +514,7 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
             int width = rct.right;
             int height = rct.bottom;
 
+			std::wstring wstrBodyInfo;
             for (int i = 0; i < nBodyCount; ++i)
             {
                 k4abt_skeleton_t const &skeleton = pSkeleton[i];
@@ -529,13 +530,17 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
 				// Find the closest body, if any.
 				float px = skeleton.joints[K4ABT_JOINT_PELVIS].position.xyz.x;
 				float pz = skeleton.joints[K4ABT_JOINT_PELVIS].position.xyz.z;
-				float dSqr = px * px + pz * pz;
-				if (dSqrMin > dSqr)
+				float d = sqrt(px * px + pz * pz);
+				wstrBodyInfo += (i == 0 ? L"" : L", ") + std::to_wstring(d);
+				if (dSqrMin > d)
 				{
-					dSqrMin = dSqr;
+					dSqrMin = d;
 					iClosest = i;
 				}
             }
+
+			PrintMessage(SCT_BodyInfo, (L"Detected " + std::to_wstring(nBodyCount) +
+				(nBodyCount > 1 ? L"bodies at distances of " : L"body at distance of ") + wstrBodyInfo + L"m.").c_str());
 
             hr = m_pRenderTarget->EndDraw();
 

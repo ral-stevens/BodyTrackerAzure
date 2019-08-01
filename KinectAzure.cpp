@@ -238,9 +238,12 @@ void KinectAzure::SkeletonUpdate()
 					}
 				}
 				if (K4A_SUCCEEDED(skeleton_result) && m_funProcessBody)
-					for (auto & joint : skeletons->joints) {
-						for (auto & coordinate : joint.position.v)
-							coordinate /= 1000.0;
+					for (size_t i = 0; i < num_bodies; i++)
+					{
+						for (auto & joint : skeletons[i].joints) {
+							for (auto & coordinate : joint.position.v)
+								coordinate /= 1000.0;
+						}
 					}
 					m_funProcessBody(timestamp_usec, num_bodies, skeletons, body_ids);
 
