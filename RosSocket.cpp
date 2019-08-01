@@ -11,8 +11,8 @@ RosSocket::RosSocket() :
 	m_nLastUpdateTime(GetTickCount64()),
 	//m_nTimeout_ms(2000),
 	m_nSpinCounter(0),
-	m_PubSkeleton(m_strImuTopic.c_str(), &m_MsgSkeleton),
-	m_PubIMU(m_strSkeletonTopic.c_str(), &m_MsgIMU),
+	m_PubSkeleton(m_strSkeletonTopic.c_str(), &m_MsgSkeleton),
+	m_PubIMU(m_strImuTopic.c_str(), &m_MsgIMU),
 	m_Thread(&RosSocket::threadProc, this)
 {	
 	std::for_each(m_TfBroadcasters.begin(), m_TfBroadcasters.end(), 
