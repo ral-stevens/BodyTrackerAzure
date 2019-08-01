@@ -183,14 +183,14 @@ void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 		m_MsgIMU.header.seq++;
 		m_MsgIMU.header.stamp = nh.now();
 
-		m_MsgIMU.angular_velocity.x = imu_sample.gyro_sample.xyz.x;
-		m_MsgIMU.angular_velocity.y = imu_sample.gyro_sample.xyz.y;
-		m_MsgIMU.angular_velocity.z = imu_sample.gyro_sample.xyz.z;
+		m_MsgIMU.angular_velocity.x = -1.0 * imu_sample.gyro_sample.xyz.x;
+		m_MsgIMU.angular_velocity.y = 1.0 * imu_sample.gyro_sample.xyz.y;
+		m_MsgIMU.angular_velocity.z = -1.0 * imu_sample.gyro_sample.xyz.z;
 		m_MsgIMU.gyro_timestamp_usec = imu_sample.gyro_timestamp_usec;
 
-		m_MsgIMU.linear_acceleration.x = imu_sample.acc_sample.xyz.x;
-		m_MsgIMU.linear_acceleration.y = imu_sample.acc_sample.xyz.y;
-		m_MsgIMU.linear_acceleration.z = imu_sample.acc_sample.xyz.z;
+		m_MsgIMU.linear_acceleration.x = -1.0 * imu_sample.acc_sample.xyz.x;
+		m_MsgIMU.linear_acceleration.y = 1.0 * imu_sample.acc_sample.xyz.y;
+		m_MsgIMU.linear_acceleration.z = -1.0 * imu_sample.acc_sample.xyz.z;
 		m_MsgIMU.acc_timestamp_usec = imu_sample.acc_timestamp_usec;
 
 		m_PubIMU.publish(&m_MsgIMU);
