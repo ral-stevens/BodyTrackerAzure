@@ -7,7 +7,7 @@
 #include <array>
 #include "gait_training_robot/HumanSkeletonAzure.h"
 #include "gait_training_robot/ImuAzure.h"
-
+#include "rosserial_windows/ros_lib/sensor_msgs/Imu.h"
 #include "rosserial_windows/ros_lib/tf/transform_broadcaster.h"
 #include "rosserial_windows/ros_lib/geometry_msgs/TransformStamped.h"
 #include "include/tf2/LinearMath/Quaternion.h"
@@ -44,6 +44,7 @@ public:
 	// reference: https://github.com/microsoft/Azure_Kinect_ROS_Driver/blob/melodic/src/k4a_calibration_transform_data.cpp
 	void broadcastDepthTf(const k4a_calibration_t * k4a_calibration);
 	void broadcastImuTf(const k4a_calibration_t * k4a_calibration);
+	ros::Time timestampToROS(const uint64_t & k4a_timestamp_us);
 private:
 	ros::NodeHandle			nh;
 	std::string				m_strRosMaster;
@@ -60,10 +61,12 @@ private:
 
 	// Human joint messages
 	gait_training_robot::HumanSkeletonAzure	m_MsgSkeleton;
-	gait_training_robot::ImuAzure           m_MsgIMU;
+	//gait_training_robot::ImuAzure           m_MsgIMU;
+	sensor_msgs::Imu                        m_MsgIMU;
 	ros::Publisher			                m_PubSkeleton;
 	ros::Publisher			                m_PubIMU;
 	std::array<tf::TransformBroadcaster, 3> m_TfBroadcasters;
+	ros::Time				m_tStartTime;
 
 	std::mutex              m_Mutex;
 	std::thread             m_Thread;

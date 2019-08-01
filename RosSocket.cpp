@@ -111,7 +111,7 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 
 	// Broadcast transform
 	static geometry_msgs::TransformStamped transform_stamped;
-	transform_stamped.header.stamp = nh.now();
+	transform_stamped.header.stamp = timestampToROS(k4a_timestamp_usec);
 	transform_stamped.header.frame_id = m_strDepthFrame.c_str();
 	transform_stamped.header.seq++;
 	transform_stamped.child_frame_id = "skeleton_pelvis_link";
@@ -143,7 +143,7 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 
 		// Prepare skeleton message to be published
 		m_MsgSkeleton.header.seq++;
-		m_MsgSkeleton.header.stamp = nh.now();
+		m_MsgSkeleton.header.stamp = timestampToROS(k4a_timestamp_usec);
 		m_MsgSkeleton.id = id;
 		m_MsgSkeleton.k4a_timestamp_usec = k4a_timestamp_usec;
 
@@ -178,20 +178,21 @@ void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 	std::wstringstream wss;
 	bool bImuPubEnabled = false;
 	Config::Instance()->assign("RosSocket/imuPub/enabled", bImuPubEnabled);
+
+	m_MsgIMU.header.stamp = timestampToROS(imu_sample.acc_timestamp_usec);
 	if (bImuPubEnabled)
 	{ 
 		m_MsgIMU.header.seq++;
-		m_MsgIMU.header.stamp = nh.now();
 
 		m_MsgIMU.angular_velocity.x = -1.0 * imu_sample.gyro_sample.xyz.x;
 		m_MsgIMU.angular_velocity.y = 1.0 * imu_sample.gyro_sample.xyz.y;
 		m_MsgIMU.angular_velocity.z = -1.0 * imu_sample.gyro_sample.xyz.z;
-		m_MsgIMU.gyro_timestamp_usec = imu_sample.gyro_timestamp_usec;
 
 		m_MsgIMU.linear_acceleration.x = -1.0 * imu_sample.acc_sample.xyz.x;
 		m_MsgIMU.linear_acceleration.y = 1.0 * imu_sample.acc_sample.xyz.y;
 		m_MsgIMU.linear_acceleration.z = -1.0 * imu_sample.acc_sample.xyz.z;
-		m_MsgIMU.acc_timestamp_usec = imu_sample.acc_timestamp_usec;
+
+		m_MsgIMU.orientation_covariance[0] = -1.0;
 
 		m_PubIMU.publish(&m_MsgIMU);
 
@@ -286,6 +287,28 @@ void RosSocket::broadcastImuTf(const k4a_calibration_t * k4a_calibration)
 	static_transform.transform.rotation.w = imu_rotation.w();
 
 	m_TfBroadcasters[2].sendTransform(static_transform);
+}
+
+ros::Time RosSocket::timestampToROS(const uint64_t & k4a_timestamp_us)
+{
+	double k4a_timestamp_s = k4a_timestamp_us / 1e6;
+	uint32_t sec = (uint32_t)floor(k4a_timestamp_s);
+	uint32_t nsec = (uint32_t)round((k4a_timestamp_s - sec) * 1e9);
+	ros::Duration duration_since_device_startup(sec, nsec);
+
+	// Set the time base if it is not set yet.
+	if (m_tStartTime.sec == 0 && m_tStartTime.nsec == 0)
+	{
+		const ros::Duration transmission_delay(0, 5000000); // 5 ms
+		m_tStartTime = nh.now();
+		m_tStartTime -= duration_since_device_startup;
+		m_tStartTime -= transmission_delay;
+	}
+
+	// Calculate the return timestamp
+	ros::Time ret = m_tStartTime;
+	ret += duration_since_device_startup;
+	return ret;
 }
 
 
