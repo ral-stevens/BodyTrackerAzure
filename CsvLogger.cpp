@@ -17,6 +17,42 @@ std::ostream & operator<<(std::ostream & lhs, ValueType & rhs) {
 	}
 }
 
+static const char * k4abt_joint_id_strings[] = {
+	"PELVIS",
+	"SPINE_NAVAL",
+	"SPINE_CHEST",
+	"NECK",
+	"CLAVICLE_LEFT",
+	"SHOULDER_LEFT",
+	"ELBOW_LEFT",
+	"WRIST_LEFT",
+	"CLAVICLE_RIGHT",
+	"SHOULDER_RIGHT",
+	"ELBOW_RIGHT",
+	"WRIST_RIGHT",
+	"HIP_LEFT",
+	"KNEE_LEFT",
+	"ANKLE_LEFT",
+	"FOOT_LEFT",
+	"HIP_RIGHT",
+	"KNEE_RIGHT",
+	"ANKLE_RIGHT",
+	"FOOT_RIGHT",
+	"HEAD",
+	"NOSE",
+	"EYE_LEFT",
+	"EAR_LEFT",
+	"EYE_RIGHT",
+	"EAR_RIGHT"
+};
+
+
+const char * getJointTypeString(int enumVal)
+{
+	return k4abt_joint_id_strings[enumVal];
+}
+
+
 std::string CsvLogger::s_strDataPath = "";
 time_t CsvLogger::m_rawtime = 0;
 CsvLogger::CsvLogger(const char * name, vector_header_value_t && vectorHeaderValue) :

@@ -1,10 +1,11 @@
 ros_master=192.168.0.101:11411
 #ros_master=155.246.44.65:11411
 #ros_master=155.246.218.169:11411
+#ros_master=155.246.217.102:11411
 RosSocket/enabled=true
 RosSocket/skeletonPub/enabled=false
 RosSocket/imuPub/enabled=false
 RosSocket/timeout_ms=3000
 k4a/depth_mode=3
-CsvLogger/enabled=false
+CsvLogger/enabled=true
 CsvLogger/dataPath=.\..\..\data

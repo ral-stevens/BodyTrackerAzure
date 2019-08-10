@@ -15,7 +15,7 @@ class ValueType {
 	union {
 		const uint64_t * n_;
 		const float * f_;
-		const std::string * str_;
+		const char ** str_;
 	};
 public:
 	ValueType(const uint64_t * n) {
@@ -26,7 +26,7 @@ public:
 		f_ = f;
 		type = type_f;
 	}
-	ValueType(const std::string * str) {
+	ValueType(const char ** str) {
 		str_ = str;
 		type = type_str;
 	}
@@ -35,6 +35,8 @@ public:
 };
 
 typedef std::vector<std::pair<std::string, ValueType>> vector_header_value_t;
+
+const char * getJointTypeString(int enumVal);
 
 class CsvLogger
 {

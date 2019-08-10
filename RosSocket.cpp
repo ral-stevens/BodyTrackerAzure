@@ -130,17 +130,6 @@ void RosSocket::publishMsgSkeleton(const k4abt_skeleton_t & skeleton, uint32_t i
 	Config::Instance()->assign("RosSocket/skeletonPub/enabled", bSkeletonPubEnabled);
 	if (bSkeletonPubEnabled) 
 	{
-		uint64_t ros_ts = static_cast<uint64_t>(transform_stamped.header.stamp.toNsec());
-		uint64_t win_ts = GetTickCount64();
-		static CsvLogger logger("pelvis_pose", vector_header_value_t{
-			{"ros_ts_nsec", &ros_ts},
-			{"win_ts_msec", &win_ts},
-			{"k4a_ts_usec", &k4a_timestamp_usec},
-			{"px", &px}, {"py", &py}, {"pz", &pz}, // position
-			{"qw", &qw}, {"qx", &qx}, {"qy", &qy}, {"qz", &qz} // orientation
-			});
-		logger.log();
-
 		// Prepare skeleton message to be published
 		m_MsgSkeleton.header.seq++;
 		m_MsgSkeleton.header.stamp = timestampToROS(k4a_timestamp_usec);
@@ -196,21 +185,6 @@ void RosSocket::publishMsgImu(const k4a_imu_sample_t & imu_sample)
 
 		m_PubIMU.publish(&m_MsgIMU);
 
-		uint64_t ros_ts = static_cast<uint64_t>(m_MsgIMU.header.stamp.toNsec());
-		uint64_t win_ts = GetTickCount64();
-		static CsvLogger logger("imu", vector_header_value_t{
-			{"ros_ts_nsec", &ros_ts},
-			{"win_ts_msec", &win_ts},
-			{"acc_ts_usec", &imu_sample.acc_timestamp_usec},
-			{"gyro_ts_usec", &imu_sample.gyro_timestamp_usec},
-			{"wx", &imu_sample.gyro_sample.xyz.x},
-			{"wy", &imu_sample.gyro_sample.xyz.y},
-			{"wz", &imu_sample.gyro_sample.xyz.z},
-			{"vx", &imu_sample.acc_sample.xyz.x},
-			{"vy", &imu_sample.acc_sample.xyz.y},
-			{"vz", &imu_sample.acc_sample.xyz.z}
-			});
-		logger.log();
 		wss << L"Published IMU msg with seq = " << m_MsgIMU.header.seq;
 	}
 	else

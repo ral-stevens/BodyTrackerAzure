@@ -16,6 +16,7 @@
 #include "RosSocket.h"
 #include "BodyTracker.h"
 #include "Config.h"
+#include "CsvLogger.h"
 
 static const float c_JointThickness = 3.0f;
 static const float c_TrackedBoneThickness = 6.0f;
@@ -472,32 +473,65 @@ void BodyTracker::EnsureRosSocket()
 
 /// <summary>
 /// Handle new body data
-/// <param name="nTime">timestamp of frame in usec</param>
+/// <param name="k4a_timestamp_usec">timestamp of frame in usec</param>
 /// <param name="nBodyCount">body data count</param>
 /// <param name="ppBodies">body data in frame</param>
 /// </summary>
-void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)
+void BodyTracker::ProcessBody(uint64_t k4a_timestamp_usec, int nBodyCount, const k4abt_skeleton_t *pSkeleton, const uint32_t * pID)
 {
 	int iClosest = -1; // the index of the body closest to the camera
 	float dSqrMin = 25.0; // squared x-z-distance of the closest body
 	INT64 t0Windows = GetTickCount64();
+
+	// Find the body with the min dist
+	float min_dist = std::numeric_limits<float>::infinity();
+	int min_dist_i = 0;
+	for (int i = 0; i < nBodyCount; i++) {
+		const k4a_float3_t & position_pelvis = pSkeleton[i].joints[K4ABT_JOINT_PELVIS].position;
+		const float & px = position_pelvis.xyz.x;
+		const float & pz = position_pelvis.xyz.z;
+		float dist = sqrt(px * px + pz * pz);
+		if (min_dist > dist)
+		{
+			min_dist = dist;
+			min_dist_i = i;
+		}
+	}
+
+	// Log skeleton data data
+	const std::vector<k4abt_joint_id_t> logged_joint_id_list = { 
+		K4ABT_JOINT_PELVIS, K4ABT_JOINT_ANKLE_LEFT, K4ABT_JOINT_ANKLE_RIGHT };
+	for (const auto & joint_id : logged_joint_id_list)
+	{
+		static const char * joint_type;
+		static float px, py, pz, qw, qx, qy, qz;
+		const k4abt_joint_t & logged_joint = pSkeleton[min_dist_i].joints[joint_id];
+		px = logged_joint.position.xyz.x;
+		py = logged_joint.position.xyz.y;
+		pz = logged_joint.position.xyz.z;
+
+		qw = logged_joint.orientation.wxyz.w;
+		qx = logged_joint.orientation.wxyz.x;
+		qy = logged_joint.orientation.wxyz.y;
+		qz = logged_joint.orientation.wxyz.z;
+
+		joint_type = getJointTypeString(joint_id);
+
+		// Log data to file
+		static CsvLogger logger("partial_skeleton", vector_header_value_t{
+			{"k4a_ts_usec", &k4a_timestamp_usec},
+			{"joint_type", &joint_type},
+			{"px", &px}, {"py", &py}, {"pz", &pz}, // position
+			{"qw", &qw}, {"qx", &qx}, {"qy", &qy}, {"qz", &qz} // orientation
+		});
+		if ((qw * qw + qx * qx + qy * qy + qz * qz) > 0.8)
+			logger.log();
+	}
+
+	// Publish only the body with min dist
 	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Connected)
 	{
-		// Publish only the body with min dist
-		float min_dist = std::numeric_limits<float>::infinity();
-		int min_dist_i = 0;
-		for (int i = 0; i < nBodyCount; i++) {
-			const k4a_float3_t & position_pelvis = pSkeleton[i].joints[K4ABT_JOINT_PELVIS].position;
-			const float & px = position_pelvis.xyz.x;
-			const float & pz = position_pelvis.xyz.z;
-			float dist = sqrt(px * px + pz * pz);
-			if (min_dist > dist)
-			{
-				min_dist = dist;
-				min_dist_i = i;
-			}
-		}
-		m_pRosSocket->publishMsgSkeleton(pSkeleton[min_dist_i], pID[min_dist_i], nTime);
+		m_pRosSocket->publishMsgSkeleton(pSkeleton[min_dist_i], pID[min_dist_i], k4a_timestamp_usec);
 	}
 
     if (m_hWnd)
@@ -586,11 +620,23 @@ void BodyTracker::ProcessBody(uint64_t nTime, int nBodyCount, const k4abt_skelet
 	
 }
 
-void BodyTracker::ProcessIMU(const k4a_imu_sample_t & ImuSample)
+void BodyTracker::ProcessIMU(const k4a_imu_sample_t & imu_sample)
 {
+	// Log data to file
+	static CsvLogger logger("imu", vector_header_value_t{
+		{"k4a_ts_usec", &imu_sample.acc_timestamp_usec},
+		{"wx", &imu_sample.gyro_sample.xyz.x},
+		{"wy", &imu_sample.gyro_sample.xyz.y},
+		{"wz", &imu_sample.gyro_sample.xyz.z},
+		{"ax", &imu_sample.acc_sample.xyz.x},
+		{"ay", &imu_sample.acc_sample.xyz.y},
+		{"az", &imu_sample.acc_sample.xyz.z}
+		});
+	logger.log();
+
 	if (m_pRosSocket && m_pRosSocket->getStatus() == RSS_Connected)
 	{
-		m_pRosSocket->publishMsgImu(ImuSample);
+		m_pRosSocket->publishMsgImu(imu_sample);
 	}
 
 	double fps = 0.0;
